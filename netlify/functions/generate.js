@@ -49,9 +49,10 @@ async function generatePostContent(campaignName) {
 
 /**
  * HÀM XỬ LÝ CHÍNH CỦA NETLIFY FUNCTION (FIX LỖI 502)
- * Đây là cú pháp BẮT BUỘC để Netlify tìm thấy hàm
+ * Cú pháp này thay thế cho 'function DailyFullyAutomatedNewsPost() { ... }'
  */
-exports.handler = async (event, context) => {
+exports.handler = async (event, context) => { // Dòng này fix lỗi 502
+    
     // 1. Kiểm tra Method POST
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: JSON.stringify({ message: "Method Not Allowed" }) };
@@ -76,7 +77,6 @@ exports.handler = async (event, context) => {
 
     // 2. GỌI API ACCESSTRADE ĐỂ LẤY CAMPAIGN
     try {
-        // FIX LỖI AUTH: Thay đổi Header từ 'Token' sang 'Bearer'
         const authHeader = `Bearer ${ACCESSTRADE_API_KEY}`; 
         
         const campaignResponse = await fetch(`${ACCESSTRADE_BASE_URL}?approval=successful`, {
@@ -87,19 +87,18 @@ exports.handler = async (event, context) => {
             }
         });
         
-        // Kiểm tra lỗi AccessTrade (Nguyên nhân lỗi dữ liệu Fallback)
         if (campaignResponse.status !== 200) {
             console.error(`Lỗi ACCESSTRADE API: Code ${campaignResponse.status}`);
-            // Tiếp tục với logic Fallback bên dưới
+            // Tiếp tục với logic Fallback
         } else {
             const campaignData = await campaignResponse.json();
             
-            // Logic lọc campaign (Giả định lấy Campaign có commission tốt nhất)
+            // Logic lọc campaign
             const qualifiedCampaigns = campaignData.data.sort((a, b) => b.commission_rate - a.commission_rate);
             
             if (qualifiedCampaigns.length > 0) {
                 const campaignToPost = qualifiedCampaigns[0]; 
-                finalAffiliateLink = campaignToPost.campaign_landing_page; // Lấy link gốc
+                finalAffiliateLink = campaignToPost.campaign_landing_page; 
 
                 // 3. GỌI API GEMINI TẠO NỘI DUNG
                 generatedContent = await generatePostContent(campaignToPost.campaign_name);
@@ -108,23 +107,20 @@ exports.handler = async (event, context) => {
 
     } catch (error) {
         console.error("Lỗi chính trong Logic:", error);
-        // Nếu có lỗi mạng hoặc lỗi API nghiêm trọng, sử dụng Fallback đã định nghĩa
         finalAffiliateLink = DEFAULT_FALLBACK_LINK; 
         generatedContent = DEFAULT_FALLBACK_MESSAGE;
     }
     
-    // --- Đảm bảo Dữ liệu Luôn Hợp Lệ (Tránh lỗi Invalid URL) ---
+    // --- Đảm bảo Dữ liệu Luôn Hợp Lệ ---
     if (!generatedContent || typeof generatedContent !== 'string' || generatedContent.length < 10) {
         generatedContent = DEFAULT_FALLBACK_MESSAGE;
     }
     
-    // Đảm bảo Link không phải là undefined
     if (!finalAffiliateLink || finalAffiliateLink.includes('undefined')) {
         finalAffiliateLink = DEFAULT_FALLBACK_LINK;
     }
 
     // 4. TRẢ VỀ DỮ LIỆU CHO APPS SCRIPT
-    // TÊN BIẾN MỚI ĐÃ ĐƯỢC ĐỒNG BỘ
     return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
