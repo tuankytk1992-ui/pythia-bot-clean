@@ -60,7 +60,7 @@ exports.handler = async (event, context) => {
     try {
         const data = JSON.parse(event.body);
         const command = data.command;
-        const affiliate_id_from_sheet = data.affiliate_id; 
+        const affiliate_id_from_sheet = data.affiliate_id; // Lấy ID từ Apps Script
 
         if (command !== 'FULL_AUTO_POST') {
              return { statusCode: 400, body: JSON.stringify({ message: "Invalid command." }) };
@@ -70,7 +70,7 @@ exports.handler = async (event, context) => {
         // 1. GỌI API ACCESSTRADE & LỌC/ĐÁNH GIÁ CHIẾN DỊCH
         // =======================================================
         const campaignUrl = `${ACCESSTRADE_BASE_URL}/campaigns`;
-        const authHeader = `Token ${ACCESSTRADE_API_KEY}`;
+        const authHeader = `Token ${ACCESSTRADE_API_KEY}`; // Phải sử dụng TOKEN, không phải Bearer
         
         const campaignResponse = await fetch(campaignUrl, {
             method: 'GET',
@@ -80,28 +80,36 @@ exports.handler = async (event, context) => {
             }
         });
 
+        // Kiểm tra lỗi từ ACCESSTRADE
         if (campaignResponse.status !== 200) {
-            defaultMessage = `Lỗi ACCESSTRADE: Không thể lấy danh sách Campaigns. Code: ${campaignResponse.status}`;
+            defaultMessage = `Lỗi ACCESSTRADE: Không thể lấy danh sách Campaigns. Code: ${campaignResponse.status}. (Kiểm tra lại API KEY)`;
             throw new Error(defaultMessage);
         }
 
         const campaignData = await campaignResponse.json();
         
-        // --- LOGIC LỌC TỐI ƯU ---
+        // --- LOGIC LỌC: TẠM THỜI NỚI LỎNG ĐỂ TEST (CHỌN TẤT CẢ) ---
+        // Lý do: Kiểm tra xem vấn đề có phải do logic lọc quá khắt khe hay không
+        const qualifiedCampaigns = campaignData.data; 
+
+        // Nếu muốn dùng logic lọc khắt khe hơn, dùng code này:
+        /*
         const qualifiedCampaigns = campaignData.data.filter(c => 
-            c.name.includes("Shopee") || // Luôn ưu tiên Shopee
+            c.name.includes("Shopee") || 
             (
-                // HOẶC (Hoa hồng từ 5% trở lên VÀ Chuyển đổi từ 1% trở lên)
                 c.commission_rate >= 0.05 && 
                 c.conversion_rate >= 0.01 
             )
         );
+        */
+        // ------------------------------------------------------
 
         if (qualifiedCampaigns.length === 0) {
-            defaultMessage = "Lỗi ACCESSTRADE: Không tìm thấy Chiến dịch nào thỏa mãn tiêu chí khả thi.";
+            defaultMessage = "Lỗi ACCESSTRADE: Không tìm thấy Chiến dịch nào để đăng.";
             throw new Error(defaultMessage);
         }
 
+        // Chọn Campaign tốt nhất (nếu có) hoặc campaign đầu tiên
         qualifiedCampaigns.sort((a, b) => b.commission_rate - a.commission_rate);
         const campaignToPost = qualifiedCampaigns[0];
         
@@ -122,26 +130,29 @@ exports.handler = async (event, context) => {
         console.error("Lỗi trong xử lý Function:", error);
         
         // Dữ liệu mặc định khi xảy ra lỗi (FALLBACK)
-        generatedContent = defaultMessage || "⚡ Lỗi Hệ thống: Không thể tạo nội dung/lấy dữ liệu. Kiểm tra Netlify Logs.";
-        finalAffiliateLink = "https://www.facebook.com/luuquynhtrang"; 
+        generatedContent = defaultMessage || "⚡ Lỗi Hệ thống: Kiểm tra lại API KEY và Netlify Logs.";
+        
+        // Cập nhật Link Fallback an toàn hơn để tránh lỗi Invalid URL trong Make.com
+        finalAffiliateLink = "https://accesstrade.vn/"; 
     }
         
     // =======================================================
-    // 4. LOGIC FIX LỖI 400 (FALLBACK CUỐI)
+    // 4. LOGIC FIX LỖI RỖNG (FALLBACK CUỐI)
     // =======================================================
     if (!generatedContent || typeof generatedContent !== 'string' || generatedContent.trim().length < 10) {
         generatedContent = "⚡ Bài viết tự động bị lỗi tạo nội dung AI. Vui lòng kiểm tra lại cấu hình GEMINI API.";
     }
 
-    if (!finalAffiliateLink) {
-        finalAffiliateLink = "https://www.facebook.com/luuquynhtrang"; 
+    if (!finalAffiliateLink || !finalAffiliateLink.startsWith('http')) {
+        finalAffiliateLink = "https://accesstrade.vn/"; 
     }
     
-    // 5. TRẢ VỀ DỮ LIỆU CHO APPS SCRIPT (VÀ MAKE.COM)
+    // 5. TRẢ VỀ DỮ LIỆU CHO APPS SCRIPT
     return {
         statusCode: 200,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+            // Các key này là đầu ra cuối cùng, Apps Script sẽ dùng nó để tạo MakePayload
             content_ready_for_social: generatedContent, 
             af_link: finalAffiliateLink 
         })
