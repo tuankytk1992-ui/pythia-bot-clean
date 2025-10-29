@@ -60,7 +60,6 @@ exports.handler = async (event, context) => {
     try {
         const data = JSON.parse(event.body);
         const command = data.command;
-        // Dữ liệu đầu vào: Affiliate ID từ Apps Script
         const affiliate_id_from_sheet = data.affiliate_id; 
 
         if (command !== 'FULL_AUTO_POST') {
@@ -90,7 +89,6 @@ exports.handler = async (event, context) => {
         
         // --- LOGIC LỌC TỐI ƯU ---
         const qualifiedCampaigns = campaignData.data.filter(c => 
-            // Tiêu chí lọc:
             c.name.includes("Shopee") || // Luôn ưu tiên Shopee
             (
                 // HOẶC (Hoa hồng từ 5% trở lên VÀ Chuyển đổi từ 1% trở lên)
@@ -104,10 +102,7 @@ exports.handler = async (event, context) => {
             throw new Error(defaultMessage);
         }
 
-        // Sắp xếp theo Tỷ lệ Hoa hồng giảm dần
         qualifiedCampaigns.sort((a, b) => b.commission_rate - a.commission_rate);
-
-        // Chọn Campaign tốt nhất (campaign đầu tiên)
         const campaignToPost = qualifiedCampaigns[0];
         
         const campaignName = campaignToPost.name || "Chiến dịch Đặc biệt";
@@ -121,7 +116,6 @@ exports.handler = async (event, context) => {
         // =======================================================
         // 3. TẠO LIÊN KẾT AFFILIATE CUỐI CÙNG
         // =======================================================
-        // Dữ liệu đầu vào: Landing Page từ ACCESSTRADE + Affiliate ID từ Apps Script
         finalAffiliateLink = `${campaignLandingPage}?utm_source=social&aff_id=${affiliate_id_from_sheet}`;
 
     } catch (error) {
@@ -148,9 +142,8 @@ exports.handler = async (event, context) => {
         statusCode: 200,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-            // Các key này phải khớp với Make.com
             content_ready_for_social: generatedContent, 
-            af_link: finalAffiliateLink // Link Affiliate
+            af_link: finalAffiliateLink 
         })
     };
 };
