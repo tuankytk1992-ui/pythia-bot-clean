@@ -1,6 +1,22 @@
+# ====================================================================
+# SỬ DỤNG PHIÊN BẢN NODE.JS CHO CẢ QUÁ TRÌNH BUILD VÀ FUNCTIONS
+# ====================================================================
+
+[build]
+  # Đảm bảo Netlify sử dụng Node.js 18 ổn định cho toàn bộ quá trình
+  # Đây là cách chính xác để đặt NODE_VERSION theo tài liệu Netlify
+  environment = { NODE_VERSION = "18" }
+
+# ====================================================================
+# CẤU HÌNH NETLIFY FUNCTIONS
+# ====================================================================
+
 [functions]
-  # Đảm bảo Netlify sử dụng Node.js 18 ổn định cho Functions
+  # Thư mục chứa các file Functions (ví dụ: generate.js)
+  directory = "netlify/functions" 
+  
+  # Sử dụng esbuild để tăng tốc độ đóng gói (bundling) Function
   node_bundler = "esbuild"
-  node_version = "18"
-  # Chỉ định thư mục Functions
-  directory = "netlify/functions"
+  
+  # KHÔNG cần đặt node_version ở đây nữa vì đã đặt trong [build.environment]
+  # Nếu không, nó sẽ bị lỗi cú pháp như đã thấy trước đó.
