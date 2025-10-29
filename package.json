@@ -1,6 +1,9 @@
 {
   "name": "pythia-bot-functions",
   "version": "1.0.0",
+  "scripts": {
+    "build": "echo 'Functions built successfully'"
+  },
   "dependencies": {
     "node-fetch": "2.7.0"
   }
