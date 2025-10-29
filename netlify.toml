@@ -1,0 +1,6 @@
+[functions]
+  # Đảm bảo Netlify sử dụng Node.js 18 ổn định cho Functions
+  node_bundler = "esbuild"
+  node_version = "18"
+  # Chỉ định thư mục Functions
+  directory = "netlify/functions"
